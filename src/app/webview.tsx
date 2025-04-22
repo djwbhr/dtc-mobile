@@ -25,17 +25,43 @@ export default function WebViewScreen() {
   const handleFileDownload = async (url: string) => {
     try {
       const filename = url.split("/").pop();
-      const downloadPath = `${FileSystem.documentDirectory}downloads/${filename}`;
-      const downloadResult = await FileSystem.downloadAsync(url, downloadPath);
+      if (!filename) {
+        throw new Error("Invalid file URL");
+      }
 
+      // Создаем директорию для загрузок, если её нет
+      const downloadDir = `${FileSystem.documentDirectory}downloads`;
+      const dirInfo = await FileSystem.getInfoAsync(downloadDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(downloadDir, {
+          intermediates: true,
+        });
+      }
+
+      const downloadPath = `${downloadDir}/${filename}`;
+
+      // Проверяем, доступно ли приложение для шаринга
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        throw new Error("Sharing is not available");
+      }
+
+      const downloadResult = await FileSystem.downloadAsync(url, downloadPath);
       if (downloadResult.status === 200) {
-        await Sharing.shareAsync(downloadResult.uri);
+        await Sharing.shareAsync(downloadResult.uri, {
+          UTI: ".pdf", // Для iOS
+          mimeType: "application/pdf", // Для Android
+          dialogTitle: "Открыть файл с помощью...",
+        });
       } else {
-        throw new Error("Download failed");
+        throw new Error(`Download failed with status ${downloadResult.status}`);
       }
     } catch (error) {
       console.error("Error downloading file:", error);
-      Alert.alert("Ошибка скачивания", "Не удалось скачать файл");
+      Alert.alert(
+        "Ошибка скачивания",
+        error instanceof Error ? error.message : "Не удалось скачать файл"
+      );
     }
   };
 
@@ -44,6 +70,7 @@ export default function WebViewScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
         multiple: false,
+        copyToCacheDirectory: true, // Копируем файл во временную директорию
       });
 
       if (result.canceled) return;
@@ -51,27 +78,48 @@ export default function WebViewScreen() {
       const file = result.assets[0];
       const formData = new FormData();
       formData.append("file", {
-        uri: file.uri,
-        type: file.mimeType,
-        name: file.name,
+        uri:
+          Platform.OS === "android"
+            ? file.uri
+            : file.uri.replace("file://", ""),
+        type: file.mimeType || "application/octet-stream",
+        name: file.name || "file",
       } as any);
 
       const response = await fetch(`${API_URL}/api/upload`, {
         method: "POST",
         body: formData,
-        headers: { "Content-Type": "multipart/form-data" },
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
-      await response.json();
-      webViewRef.current?.reload();
-      Alert.alert("Success", "File uploaded successfully");
+      const responseData = await response.json();
+
+      // Уведомляем веб-приложение об успешной загрузке
+      webViewRef.current?.injectJavaScript(`
+        (function() {
+          if (typeof window.onUploadSuccess === 'function') {
+            window.onUploadSuccess(${JSON.stringify(responseData)});
+          } else {
+            window.location.reload();
+          }
+          true;
+        })();
+      `);
+
+      Alert.alert("Успех", "Файл успешно загружен");
     } catch (error) {
       console.error("File operation error:", error);
-      Alert.alert("Error", "Failed to process file");
+      Alert.alert(
+        "Ошибка",
+        error instanceof Error ? error.message : "Не удалось обработать файл"
+      );
     }
   };
 
@@ -85,29 +133,80 @@ export default function WebViewScreen() {
 
     // Обработка выбора файла
     document.addEventListener('click', function(e) {
-      if (e.target instanceof HTMLInputElement && e.target.type === 'file') {
+      const target = e.target;
+      if (target instanceof HTMLInputElement && target.type === 'file') {
         e.preventDefault();
+        e.stopPropagation();
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'file-select' }));
+        return false;
+      }
+    }, true);
+
+    // Обработка скачивания файлов
+    document.addEventListener('click', function(e) {
+      const target = e.target;
+      if (target instanceof HTMLAnchorElement) {
+        const href = target.getAttribute('href');
+        if (href && (
+          href.startsWith('/uploads/') || 
+          href.startsWith(window.API_BASE_URL + '/uploads/')
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+          const fullUrl = href.startsWith('/') ? window.API_BASE_URL + href : href;
+          window.ReactNativeWebView.postMessage(JSON.stringify({ 
+            type: 'download',
+            url: fullUrl
+          }));
+          return false;
+        }
       }
     }, true);
 
     // Обработка загрузки файлов
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
-      if (typeof url === 'string' && url.startsWith('/uploads/')) {
-        url = window.API_BASE_URL + url;
+      if (typeof url === 'string') {
+        // Обработка URL для загруженных файлов
+        if (url.startsWith('/uploads/')) {
+          url = window.API_BASE_URL + url;
+        }
+        // Обработка URL для API запросов
+        else if (url.startsWith('/api/')) {
+          url = window.API_BASE_URL + url;
+        }
       }
       return originalFetch(url, options);
     };
+
+    // Функция для обновления списка файлов
+    window.onUploadSuccess = function(data) {
+      console.log('Upload successful:', data);
+      if (typeof window.reloadFileList === 'function') {
+        window.reloadFileList();
+      } else {
+        window.location.reload();
+      }
+    };
+
+    true;
   `;
 
   const handleWebViewMessage = (event: WebViewMessageEvent) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "file-select") {
-        handleFileSelect();
-      } else if (data.type === "download") {
-        handleFileDownload(data.url);
+      switch (data.type) {
+        case "file-select":
+          handleFileSelect();
+          break;
+        case "download":
+          if (!data.url) {
+            throw new Error("Download URL is missing");
+          }
+          handleFileDownload(data.url);
+          break;
+        default:
+          console.warn("Unknown message type:", data.type);
       }
     } catch (error) {
       console.error("Error handling WebView message:", error);
@@ -128,6 +227,9 @@ export default function WebViewScreen() {
         javaScriptEnabled={true}
         mixedContentMode="always"
         originWhitelist={["*"]}
+        allowFileAccessFromFileURLs={true}
+        allowUniversalAccessFromFileURLs={true}
+        cacheEnabled={false}
       />
     </View>
   );
