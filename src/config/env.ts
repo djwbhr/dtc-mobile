@@ -8,9 +8,15 @@ const {
   WEB_PORT = '5173',
 } = Constants.expoConfig?.extra || {};
 
+// Определяем, запущено ли приложение в эмуляторе Android
+const isAndroidEmulator = Platform.OS === 'android' && Constants.isDevice === false;
+
 const HOST = Platform.select({
-  android: Platform.isTV ? DEVICE_HOST : EMULATOR_HOST,
-  ios: 'localhost',
+  // Для Android: используем 10.0.2.2 в эмуляторе, иначе IP устройства
+  android: isAndroidEmulator ? EMULATOR_HOST : DEVICE_HOST,
+  // Для iOS используем localhost в симуляторе, иначе IP устройства
+  ios: Constants.isDevice ? DEVICE_HOST : 'localhost',
+  // Для остальных платформ используем IP устройства
   default: DEVICE_HOST,
 });
 
@@ -20,7 +26,7 @@ export const WEBVIEW_URL = `http://${HOST}:${WEB_PORT}`;
 export const config = {
   API_URL,
   WEBVIEW_URL,
-  isEmulator: HOST === EMULATOR_HOST,
+  isEmulator: !Constants.isDevice,
   apiPort: API_PORT,
   webPort: WEB_PORT,
 }; 
