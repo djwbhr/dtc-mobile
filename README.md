@@ -1,50 +1,67 @@
-# Welcome to your Expo app 👋
+# DTC Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Мобильное приложение для просмотра новостей и работы с файлами.
 
-## Get started
+## Установка
 
-1. Install dependencies
+1. Скачайте APK файл по ссылке: _Добавлю позже_
+2. Установите приложение на ваше Android устройство
 
-   ```bash
-   npm install
-   ```
+## Настройка окружения
 
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Скопируйте файл `.env.example` в `.env`:
 
 ```bash
-npm run reset-project
+cp .env.example .env
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Настройте переменные окружения в `.env`:
 
-## Learn more
+### Для эмулятора Android:
 
-To learn more about developing your project with Expo, look at the following resources:
+Оставьте значения по умолчанию:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```env
+EMULATOR_HOST=10.0.2.2
+API_PORT=3001
+WEB_PORT=5173
+```
 
-## Join the community
+### Для физического устройства:
 
-Join our community of developers creating universal apps.
+1. Узнайте IP адрес вашего компьютера:
+   - Windows: `ipconfig` в командной строке
+   - Mac/Linux: `ifconfig` в терминале
+2. Обновите значение в `.env`:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```env
+DEVICE_HOST=YOUR_IP_ADDRESS
+```
+
+## Запуск проекта
+
+### Сервер
+
+```bash
+# Установка зависимостей
+npm install
+
+# Запуск сервера
+npm run server
+```
+
+### Веб-приложение
+
+```bash
+# В отдельном терминале
+npm run web
+```
+
+### Мобильное приложение
+
+```bash
+# В отдельном терминале
+npm start
+# или
+expo start
+```

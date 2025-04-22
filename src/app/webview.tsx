@@ -4,20 +4,7 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as DocumentPicker from "expo-document-picker";
 import { View, StyleSheet, Alert, Platform } from "react-native";
-
-// Для эмулятора Android используем 10.0.2.2
-// Для физического устройства используем IP-адрес компьютера
-const WEBVIEW_URL = Platform.select({
-  android: "http://10.0.2.2:5173",
-  ios: "http://localhost:5173",
-  default: "http://192.168.1.161:5173",
-});
-
-const API_URL = Platform.select({
-  android: "http://10.0.2.2:3001",
-  ios: "http://localhost:3001",
-  default: "http://192.168.1.161:3001",
-});
+import { config, API_URL, WEBVIEW_URL } from "../config/env";
 
 export default function WebViewScreen() {
   const webViewRef = useRef<WebView>(null);
@@ -70,7 +57,7 @@ export default function WebViewScreen() {
       const result = await DocumentPicker.getDocumentAsync({
         type: "*/*",
         multiple: false,
-        copyToCacheDirectory: true, // Копируем файл во временную директорию
+        copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
@@ -125,6 +112,9 @@ export default function WebViewScreen() {
 
   const injectedJavaScript = `
     window.API_BASE_URL = '${API_URL}';
+    console.log('Running in ${config.isEmulator ? "emulator" : "device"} mode');
+    console.log('API URL:', '${API_URL}');
+    console.log('WebView URL:', '${WEBVIEW_URL}');
     
     // Настройка axios
     if (window.axios) {
