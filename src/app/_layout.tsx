@@ -1,10 +1,31 @@
 import { Stack } from "expo-router";
 import { useEffect } from "react";
 import * as FileSystem from "expo-file-system";
-import * as DocumentPicker from "expo-document-picker";
-import * as Sharing from "expo-sharing";
-
+import { registerForPushNotificationsAsync, sendTokenToServer, setupNotificationHandlers } from "@/utils/notifications";
 export default function Layout() {
+
+  useEffect(() => {
+    // Регистрация для получения уведомлений
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        sendTokenToServer(token.data);
+      }
+    });
+
+    // Настройка обработчиков уведомлений
+    const cleanup = setupNotificationHandlers(
+      (notification) => {
+        console.log("Notification received:", notification);
+      },
+      (response) => {
+        console.log("Notification response:", response);
+        // Здесь можно добавить логику обработки нажатия на уведомление
+      }
+    );
+
+    return cleanup;
+  }, []);
+
   useEffect(() => {
     // Создаем директорию для загрузок, если её нет
     const createDownloadsDir = async () => {
@@ -16,6 +37,8 @@ export default function Layout() {
     };
     createDownloadsDir();
   }, []);
+
+
 
   return (
     <Stack
