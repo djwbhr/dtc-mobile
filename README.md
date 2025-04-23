@@ -4,7 +4,7 @@
 
 ## Установка
 
-1. Скачайте APK файл по ссылке: _Добавлю позже_
+1. Скачайте APK файл по ссылке: https://drive.google.com/file/d/1-7I3BZZNYO-9MFCOeKEXgDNRPAlmnxRV/view?usp=sharing
 2. Установите приложение на ваше Android устройство
 
 ## Настройка окружения
