@@ -1,4 +1,4 @@
-package com.anonymous.dtcmobile
+package com.dtc.mobile
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
